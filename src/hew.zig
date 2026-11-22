@@ -598,13 +598,16 @@ fn getLatestReleaseCodeberg(scratch: *Scratch, client: *std.http.Client, owner_r
         } };
     }
     {
-        // Only fall back to tags if the releases endpoint returned "Not Found".
-        // Other 404s (e.g. repo doesn't exist) should still be fatal.
+        // Only fall back to tags if the releases endpoint returned the generic
+        // forgejo "not found" message. Other 404s (e.g. owner doesn't exist)
+        // should still be fatal. Note that a missing repo under an existing
+        // owner also returns this message, but the tags request below will
+        // then fail with its own 404.
         const is_no_releases = fetch_result.status == .not_found and blk_msg: {
             var err: ParseJsonError = undefined;
             const msg = parseMessage(fetch_result.body.items, &err) catch
                 jsonErrorExit(scratch, release_url, fetch_result.body.items, &err);
-            break :blk_msg std.mem.eql(u8, msg, "Not Found");
+            break :blk_msg std.mem.eql(u8, msg, "The target couldn't be found.");
         };
         if (!is_no_releases)
             fetchErrExit(release_url, fetch_result);
@@ -612,10 +615,10 @@ fn getLatestReleaseCodeberg(scratch: *Scratch, client: *std.http.Client, owner_r
     fetch_result.body.deinit(scratch.allocator());
 
     // No releases found, fall back to latest tag.
-    log.info("no releases found, fetching latest tag for codberg:{s}...", .{owner_repo.string});
+    log.info("no releases found, fetching latest tag for codeberg:{s}...", .{owner_repo.string});
     const tags_url = std.fmt.allocPrint(
         scratch.allocator(),
-        "https://codeberg.org/api/v1/repos/{s}/tags?page=1",
+        "https://codeberg.org/api/v1/repos/{s}/tags?limit=1",
         .{owner_repo.string},
     ) catch |e| oom(e);
     defer scratch.allocator().free(tags_url);
@@ -824,7 +827,7 @@ fn fetchTipCodeberg(scratch: *Scratch, allocator: std.mem.Allocator, owner_repo:
     log.info("fetching tip commit for codeberg:{s}...", .{owner_repo.string});
     const commit_url = std.fmt.allocPrint(
         scratch.allocator(),
-        "https://codeberg.org/api/v1/repos/{s}/commits/HEAD/status",
+        "https://codeberg.org/api/v1/repos/{s}/git/commits/HEAD",
         .{owner_repo.string},
     ) catch |e| oom(e);
     defer scratch.allocator().free(commit_url);
@@ -1659,11 +1662,13 @@ fn gitHostFromUrl(url: []const u8) ?GitHost {
         std.mem.endsWith(u8, host, ".github.com")) return .github;
     if (std.mem.eql(u8, host, "gitlab.com") or
         std.mem.endsWith(u8, host, ".gitlab.com")) return .gitlab;
+    if (std.mem.eql(u8, host, "codeberg.org")) return .codeberg;
     return null;
 }
 
 var github_auth_logged: std.atomic.Value(bool) = .init(false);
 var gitlab_auth_logged: std.atomic.Value(bool) = .init(false);
+var codeberg_auth_logged: std.atomic.Value(bool) = .init(false);
 
 fn gitAuthHeader(buf: *[github_auth_buf_len]u8, url: []const u8) std.http.Client.Request.Headers.Value {
     switch (gitHostFromUrl(url) orelse return .default) {
@@ -1736,7 +1741,7 @@ fn gitAuthHeader(buf: *[github_auth_buf_len]u8, url: []const u8) std.http.Client
                 }
                 break :blk .{ @as(usize, 0), @as([]const u8, "none") };
             };
-            if (!github_auth_logged.swap(true, .monotonic))
+            if (!codeberg_auth_logged.swap(true, .monotonic))
                 log.info("codeberg auth: {s}", .{env_name});
             if (token_len == 0) return .default;
             @memcpy(buf[0..bearer_prefix.len], bearer_prefix);

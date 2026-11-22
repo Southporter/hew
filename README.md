@@ -21,6 +21,7 @@ Those install commands download a small script which in turn downloads a prebuil
 ```
 PKG = github:OWNER/REPO[,VERSION]
     | gitlab:OWNER/REPO[,VERSION]
+    | codeberg:OWNER/REPO[,VERSION]
     | path:PATH
 
 VERSION = (omitted)    # in this priority tries latest release, tag or commit on the default branch

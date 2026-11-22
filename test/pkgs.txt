@@ -8,6 +8,16 @@ github:marler8997/msvcup,rev=562a6058f25881afc9f580c99f86e41b95733a92
 # TODO: use a release
 github:marler8997/mite,rev=b09297d9f877c8c610e5bb6bc572e6249b1742a1 --disable-macos
 
+codeberg:neurocyte/flow,rev=v0.7.2
+
+# codeberg: unpinned on purpose to test the "latest" lookups
+# latest release path (newest tag v0.3.0 has no release and fails to build)
+codeberg:marler/hew-test-release
+# tip path (no releases or tags)
+codeberg:marler/hew-test-commit
+# latest tag path (tags but no releases)
+codeberg:marler/hew-test-tag
+
 # commented out because v0.11.2 can't be built due to missing dependenty:
 #     git+https://github.com/hexops/xcode-frameworks.git#8a1cfb373587ea4c9bb1468b7c986462d8d4e10e
 #     github.com/hexops has moved to code.hexops.or
