@@ -1527,7 +1527,9 @@ const Release = struct {
 };
 
 const bearer_prefix = "Bearer ";
-const github_auth_buf_len = bearer_prefix.len + 256;
+// GitHub's Actions GITHUB_TOKEN grew to 377 bytes (Nov 2026).
+const max_auth_token_len = 512;
+const github_auth_buf_len = bearer_prefix.len + max_auth_token_len;
 
 fn gitHostFromUrl(url: []const u8) ?GitHost {
     const uri = std.Uri.parse(url) catch return null;
@@ -1552,12 +1554,12 @@ fn gitAuthHeader(buf: *[github_auth_buf_len]u8, url: []const u8) std.http.Client
                 break :blk .{ @as(usize, 0), @as([]const u8, "none") };
             } else blk: {
                 if (std.posix.getenv("GH_TOKEN")) |token| {
-                    if (token.len > dest.len) errExit("GH_TOKEN too long", .{});
+                    if (token.len > dest.len) errExit("GH_TOKEN too long (cannot exceed {d} but is {d})", .{ dest.len, token.len });
                     @memcpy(dest[0..token.len], token);
                     break :blk .{ token.len, "GH_TOKEN" };
                 }
                 if (std.posix.getenv("GITHUB_TOKEN")) |token| {
-                    if (token.len > dest.len) errExit("GITHUB_TOKEN too long", .{});
+                    if (token.len > dest.len) errExit("GITHUB_TOKEN too long (cannot exceed {d} but is {d})", .{ dest.len, token.len });
                     @memcpy(dest[0..token.len], token);
                     break :blk .{ token.len, "GITHUB_TOKEN" };
                 }
@@ -1577,12 +1579,12 @@ fn gitAuthHeader(buf: *[github_auth_buf_len]u8, url: []const u8) std.http.Client
                 break :blk .{ @as(usize, 0), @as([]const u8, "none") };
             } else blk: {
                 if (std.posix.getenv("GITLAB_TOKEN")) |token| {
-                    if (token.len > dest.len) errExit("GITLAB_TOKEN too long", .{});
+                    if (token.len > dest.len) errExit("GITLAB_TOKEN too long (cannot exceed {d} but is {d})", .{ dest.len, token.len });
                     @memcpy(dest[0..token.len], token);
                     break :blk .{ token.len, "GITLAB_TOKEN" };
                 }
                 if (std.posix.getenv("GL_TOKEN")) |token| {
-                    if (token.len > dest.len) errExit("GL_TOKEN too long", .{});
+                    if (token.len > dest.len) errExit("GL_TOKEN too long (cannot exceed {d} but is {d})", .{ dest.len, token.len });
                     @memcpy(dest[0..token.len], token);
                     break :blk .{ token.len, "GL_TOKEN" };
                 }
